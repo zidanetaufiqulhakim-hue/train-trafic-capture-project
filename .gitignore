@@ -1,0 +1,9 @@
+environment.yml
+.ipynb_checkpoints/
+.DS_Store
+notebooks/__pycache__/
+notebooks/ipynb_checkpoints/
+.vscode/
+notebooks/yolov8n.pt
+.pt
+.mp4

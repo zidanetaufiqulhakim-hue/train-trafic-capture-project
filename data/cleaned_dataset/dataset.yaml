@@ -1,0 +1,9 @@
+path: /Users/zhakim/Documents/ML_Project/train-traffic-capture-project/data/cleaned_dataset
+train: train/images
+val: val/images
+names:
+  0: passenger_increse
+  1: station_id
+  2: station_name
+  3: station_numbering
+  4: time
