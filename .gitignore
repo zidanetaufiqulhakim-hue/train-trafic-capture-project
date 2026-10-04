@@ -1,9 +1,30 @@
-environment.yml
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
 .ipynb_checkpoints/
-.DS_Store
 notebooks/__pycache__/
 notebooks/ipynb_checkpoints/
+
+# Virtual envs
+.venv/
+env/
+venv/
+environment.yml
+
+# OS / editor
+.DS_Store
 .vscode/
-notebooks/yolov8n.pt
-.pt
-.mp4
+.idea/
+
+# Training artifacts not needed for inference
+notebooks/runs/detect/train_passenger_capture/yolov8s_mps_run/weights/epoch*.pt
+notebooks/runs/detect/train_passenger_capture/yolov8s_mps_run/weights/last.pt
+yolov8n.pt
+data/annotated_dataset/
+data/augmented_dataset/
+
+# Local run outputs
+*.mp4
+output.csv
+*.tmp
