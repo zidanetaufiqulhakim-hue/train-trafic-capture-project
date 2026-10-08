@@ -2,7 +2,7 @@
 Train Traffic Capture — Gradio application.
 
 Run with:
-  python application/app.py
+  python app.py      (from the project root — the entry point Hugging Face Spaces uses)
 
 Flow:
   1. App starts  — models warm up automatically (YOLO + EasyOCR)
@@ -20,10 +20,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Hosted deployments (e.g. HF Spaces) set DISABLE_PNG_EXPORT=1 because the
-# Kaleido PNG export needs a Chrome binary we don't install there. Locally,
-# the Download chart (PNG) button stays visible.
-_PNG_EXPORT_ENABLED = os.environ.get("DISABLE_PNG_EXPORT", "0") != "1"
+# The Kaleido PNG export needs a Chrome binary that isn't installed on HF
+# Spaces (detected via SPACE_ID), so the Download chart (PNG) button is hidden
+# there. DISABLE_PNG_EXPORT=1 hides it anywhere else. Locally it stays visible.
+_PNG_EXPORT_ENABLED = (
+    os.environ.get("DISABLE_PNG_EXPORT", "0") != "1" and "SPACE_ID" not in os.environ
+)
 
 _PROJECT_ROOT = Path(__file__).parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -32,9 +34,20 @@ if str(_PROJECT_ROOT) not in sys.path:
 import gradio as gr
 import pandas as pd
 
+# `spaces` only exists on HF Spaces. Locally the pipeline runs undecorated.
+try:
+    import spaces
+except ImportError:
+    spaces = None
+
 import application.config as config
+from application.pipeline.export import to_csv
 from application.pipeline.runner import Models, iter_pipeline, load_models
-from application.pipeline.video_io import download_youtube_video, is_youtube_url
+from application.pipeline.video_io import (
+    count_sampled_frames,
+    download_youtube_video,
+    is_youtube_url,
+)
 from application.analytics.aggregation import (
     aggregate_by_station,
     aggregate_by_time_interval,
@@ -59,6 +72,10 @@ def _warmup() -> str:
     global _models
     model_path = config.YOLO_MODEL_PATH
 
+    # app.load fires on every page visit; only the first one loads the models.
+    if _models is not None:
+        return f"Models ready. Detecting: {', '.join(_models.class_names)}"
+
     if not Path(model_path).exists():
         return (
             f"Model file not found at {model_path}.  "
@@ -70,6 +87,32 @@ def _warmup() -> str:
         return f"Models ready. Detecting: {classes}"
     except Exception as e:
         return f"Failed to load models: {e}"
+
+
+# ── Pipeline entry (ZeroGPU) ──────────────────────────────────────────────────
+#
+# On a ZeroGPU Space the decorated generator runs in a worker process forked
+# from this one, with a GPU attached for up to `duration` seconds. The request
+# is sized to the video: ZeroGPU charges the requested time against the
+# visitor's daily quota up front and rejects anything much over 120 s on a
+# free account, so short clips should not ask for the maximum. The models
+# are read from the module global rather than passed in, because arguments are
+# pickled across the process boundary and the fork already inherits _models.
+# Ultralytics picks up CUDA on its first predict call; EasyOCR stays on CPU.
+
+
+def _iter_pipeline(video_path: str, target_fps: float):
+    yield from iter_pipeline(video_path, _models, target_fps)
+
+
+def _gpu_duration(video_path: str, target_fps: float) -> int:
+    """Seconds of GPU to request: ~1 s per sampled frame plus startup, 30–120 s."""
+    frames = count_sampled_frames(video_path, target_fps)
+    return int(min(120, max(30, 20 + frames)))
+
+
+if spaces is not None:
+    _iter_pipeline = spaces.GPU(duration=_gpu_duration)(_iter_pipeline)
 
 
 # ── Video source resolution ───────────────────────────────────────────────────
@@ -97,7 +140,7 @@ def _resolve_video(video_file, youtube_url: str) -> tuple[str | None, str | None
 
 # ── Output helpers ────────────────────────────────────────────────────────────
 #
-# Every yield in _handle_analyse must have exactly 9 values — one per output
+# Every yield in _handle_analyse must have exactly 10 values — one per output
 # listed in run_btn.click(outputs=[...]). gr.update() means "no change".
 
 
@@ -144,7 +187,7 @@ def _handle_analyse(video_file, youtube_url: str, target_fps: float, chart_type:
     try:
         result_df = pd.DataFrame()
 
-        for update in iter_pipeline(video_path, _models, target_fps):
+        for update in _iter_pipeline(video_path, target_fps):
 
             if isinstance(update, tuple):
                 frame_idx, total = update
@@ -227,8 +270,10 @@ def _handle_refresh_charts(df: pd.DataFrame, interval: int, chart_type: str) -> 
 def _handle_csv_download(df: pd.DataFrame):
     if df is None or (isinstance(df, pd.DataFrame) and df.empty):
         return gr.update(visible=False)
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv", prefix="train_traffic_")
-    df.to_csv(tmp.name, index=False)
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".csv", prefix="train_traffic_", encoding="utf-8"
+    )
+    tmp.write(to_csv(df))
     tmp.close()
     return gr.update(value=tmp.name, visible=True)
 

@@ -2,7 +2,8 @@ gradio==6.29.1
 plotly==7.1.0
 ultralytics==8.4.118
 easyocr==1.7.2
-opencv-python-headless==4.14.0
+opencv-python==4.14.0.94
+opencv-python-headless==4.14.0.94
 pandas==2.3.3
 numpy==2.2.5
 yt-dlp==2026.8.19

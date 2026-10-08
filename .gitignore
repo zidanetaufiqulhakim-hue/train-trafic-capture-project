@@ -3,8 +3,6 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .ipynb_checkpoints/
-notebooks/__pycache__/
-notebooks/ipynb_checkpoints/
 
 # Virtual envs
 .venv/
@@ -17,12 +15,16 @@ environment.yml
 .vscode/
 .idea/
 
-# Training artifacts not needed for inference
-notebooks/runs/detect/train_passenger_capture/yolov8s_mps_run/weights/epoch*.pt
-notebooks/runs/detect/train_passenger_capture/yolov8s_mps_run/weights/last.pt
+# Local tooling
+CLAUDE.md
+.claude/
+
+# Training data and run artifacts stay off the Space and out of the API image.
+# The weights that ship are in model_registry/ (Git LFS).
+data/
+notebooks/runs/
 yolov8n.pt
-data/annotated_dataset/
-data/augmented_dataset/
+yolov8s.pt
 
 # Local run outputs
 *.mp4

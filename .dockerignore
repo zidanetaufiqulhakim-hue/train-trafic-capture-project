@@ -1,0 +1,8 @@
+# Allow-list: the API image needs only these three directories.
+*
+!api/
+!application/
+!model_registry/
+**/__pycache__/
+**/*.pyc
+**/.DS_Store

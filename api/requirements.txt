@@ -1,0 +1,10 @@
+# Dependencies for the extraction API only (no Gradio, Plotly or yt-dlp).
+# torch / torchvision are installed separately in api/Dockerfile from the
+# CPU-only wheel index; locally they come in as ultralytics dependencies.
+fastapi==0.142.2
+uvicorn==0.54.0
+python-multipart==0.0.32
+ultralytics==8.4.118
+easyocr==1.7.2
+pandas==2.3.3
+numpy==2.2.5
