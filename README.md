@@ -1,6 +1,5 @@
 ---
 title: Train Traffic Capture
-emoji: 📊
 colorFrom: blue
 colorTo: indigo
 sdk: gradio
